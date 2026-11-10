@@ -17,7 +17,7 @@ s32 BPF_STRUCT_OPS_SLEEPABLE(sched_init) {
 
 void BPF_STRUCT_OPS(sched_enqueue, struct task_struct *p, u64 enq_flags) {
     u64 num_tasks_enqueued = scx_bpf_dsq_nr_queued(SHARED_DSQ_ID);
-    u64 slice = 5000000u / (num_tasks_enqueued ? num_tasks_enqueued : 1);
+    u64 slice = 5000000000u / (num_tasks_enqueued ? num_tasks_enqueued : 1);
     scx_bpf_dsq_insert(p, SHARED_DSQ_ID, slice, enq_flags);
 }
 
