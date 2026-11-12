@@ -4,11 +4,10 @@ NORM_CFLAGS = -Wall -g -O2 -I.
 EBPF_CC = clang
 EBPF_CFLAGS = -Wall -g -O2 -I.
 
-all: scheduler progA progB
+all: sched progA progB
 
-scheduler: sched_ext.bpf.c
-	$(EBPF_CC) -target bpf $(EBPF_CFLAGS) -c sched_ext.bpf.c -o sched_ext.bpf.o
+sched: sched.bpf.c
+	$(EBPF_CC) -target bpf $(EBPF_CFLAGS) -c sched.bpf.c -o sched.bpf.o
 
 prog%: prog%.cpp
 	$(NORM_CC) $(NORM_CFLAGS) $@.cpp -o $@
-

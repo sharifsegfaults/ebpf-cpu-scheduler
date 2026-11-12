@@ -15,9 +15,17 @@ s32 BPF_STRUCT_OPS_SLEEPABLE(sched_init) {
     return scx_bpf_create_dsq(SHARED_DSQ_ID, -1);
 }
 
+s32 BPF_STRUCT_OPS(select_cpu, struct task_struct *p, s32 prev_cpu, u64 wake_flags) {
+    s32 target_cpu = 8;
+    u64 slice = 5000000000u;
+
+    scx_bpf_dsq_insert(p, SCX_DSQ_LOCAL, slice, 0);
+    return target_cpu;
+}
+
 void BPF_STRUCT_OPS(sched_enqueue, struct task_struct *p, u64 enq_flags) {
     u64 num_tasks_enqueued = scx_bpf_dsq_nr_queued(SHARED_DSQ_ID);
-    u64 slice = 5000000000u / (num_tasks_enqueued ? num_tasks_enqueued : 1);
+    u64 slice = 5000000000u;
     scx_bpf_dsq_insert(p, SHARED_DSQ_ID, slice, enq_flags);
 }
 
@@ -27,6 +35,8 @@ void BPF_STRUCT_OPS(sched_dispatch, s32 cpu, struct task_struct *prev) {
 
 SEC(".struct_ops.link")
 struct sched_ext_ops sched_ops = {
+    .select_cpu = (void*)select_cpu,
+
     .enqueue = (void*)sched_enqueue,
     .dispatch = (void*) sched_dispatch,
     .init = (void*) sched_init,
