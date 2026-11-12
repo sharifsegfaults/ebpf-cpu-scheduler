@@ -7,9 +7,6 @@
 volatile __s32 target_cpu = 8;
 volatile __u64 slice = 0;
 
-
-
-
 #define BPF_STRUCT_OPS(name, args...) \
     SEC("struct_ops/"#name) BPF_PROG(name, ##args)
 
@@ -22,12 +19,25 @@ __s32 BPF_STRUCT_OPS_SLEEPABLE(sched_init) {
 }
 
 __s32 BPF_STRUCT_OPS(select_cpu, struct task_struct *p, __s32 prev_cpu, __u64 wake_flags) {
-    scx_bpf_dsq_insert(p, SCX_DSQ_LOCAL, slice, 0);
-    return target_cpu;
+    bool is_idle = false;
+
+    if (bpf_cpumask_test_cpu(target_cpu, p->cpus_ptr)) {
+        //scx_bpf_dsq_insert(p, SCX_DSQ_LOCAL_ON | target_cpu, slice, 0);
+        return target_cpu;
+    }
+    return scx_bpf_select_cpu_dfl(p, prev_cpu, wake_flags, &is_idle);
 }
 
 void BPF_STRUCT_OPS(sched_enqueue, struct task_struct *p, __u64 enq_flags) {
-    scx_bpf_dsq_insert(p, SHARED_DSQ_ID, slice, enq_flags);
+
+    //scx_bpf_dsq_insert(p, SHARED_DSQ_ID, slice, enq_flags);
+    if (bpf_cpumask_test_cpu(target_cpu, p->cpus_ptr)) {
+        scx_bpf_dsq_insert(p, SCX_DSQ_LOCAL_ON | target_cpu, slice, enq_flags);
+        scx_bpf_kick_cpu(target_cpu, SCX_KICK_IDLE);
+        return;
+    }
+
+    scx_bpf_dsq_insert(p, SCX_DSQ_LOCAL, SCX_SLICE_DFL, enq_flags);
 }
 
 void BPF_STRUCT_OPS(sched_dispatch, __s32 cpu, struct task_struct *prev) {

@@ -27,6 +27,11 @@ int main() {
     int num_cpus = libbpf_num_possible_cpus();
     int* perf_fds = (int*)calloc(num_cpus, sizeof(int));
     bpf_link** links = (bpf_link**)calloc(num_cpus, sizeof(bpf_link*));
+    pid_t target_tid;
+
+    std::cout << "TID to target: ";
+    std::cin >> target_tid;
+    std::cout << "\n";
 
     signal(SIGINT, sig_handler);
     signal(SIGTERM, sig_handler);
@@ -47,21 +52,19 @@ int main() {
         .precise_ip = 2,
     };
 
-    for (int target_cpu = 0; target_cpu < num_cpus; ++target_cpu) {
-        perf_fds[target_cpu] = perf_event_open(&attr, -1, target_cpu, -1, 0);
-        if (perf_fds[target_cpu] < 0) {
-            perror("perf_event_opened");
-            return 1;
-        }
-
-        links[target_cpu] = bpf_program__attach_perf_event(skel->progs.on_cache_sample, perf_fds[target_cpu]);
-        if (!links[target_cpu]) {
-            perror("attach_perf_event");
-            return 1;
-        }
+    perf_fds[0] = perf_event_open(&attr, target_tid, 8, -1, 0);
+    if (perf_fds[0] < 0) {
+        perror("perf_event_opened");
+        return 1;
     }
 
-    std::cout << "Loading the eBPF program succeeded! Sampling cache line accesses..." << "\n";
+    links[0] = bpf_program__attach_perf_event(skel->progs.on_cache_sample, perf_fds[0]);
+    if (!links[0]) {
+        perror("attach_perf_event");
+        return 1;
+    }
+
+    std::cout << "Loading the eBPF program succeeded! Sampling cache line accesses for TID " << target_tid << "..." << "\n";
     while (!exiting) {
         sleep(1);
     }
@@ -81,10 +84,9 @@ int main() {
     }
 
 cleanup:
-    for (int cpu = 0; cpu < num_cpus; ++cpu) {
-        if (links[cpu]) bpf_link__destroy(links[cpu]);
-        if (perf_fds[cpu] > 0) close(perf_fds[cpu]);
-    }
+    if (links[0]) bpf_link__destroy(links[0]);
+    if (perf_fds[0] > 0) close(perf_fds[0]);
+
     cache_bpf__destroy(skel);
     free(links);
     free(perf_fds);

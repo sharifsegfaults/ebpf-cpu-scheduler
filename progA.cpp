@@ -17,7 +17,7 @@ int main() {
 
     pid_t tid = syscall(SYS_gettid);
 
-    std::cout << "[" << tid << "]" << "Hello from A! (" << (void*)i << "): " << *i << "\n";
+    std::cout << "[" << tid << "] Hello from A! (" << (void*)i << "): " << *i << "\n";
     while (!exiting) {
         *i += 1;
     }
