@@ -1,0 +1,1 @@
+g++ -O2 uspace_cache.cpp -lbpf -lelf -lz -o uspace_cache
